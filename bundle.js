@@ -304,6 +304,7 @@ var app = new _vue2.default({
         var oldDataString = window.localStorage.getItem('myTodos');
         var oldData = JSON.parse(oldDataString);
         this.todoList = oldData || [];
+        this.currentUser = this.getCurrentUser();
     },
     methods: {
         addTodo: function addTodo() {
@@ -342,12 +343,16 @@ var app = new _vue2.default({
             }, function (error) {});
         },
         getCurrentUser: function getCurrentUser() {
-            var _AV$User$current = _leancloudStorage2.default.User.current(),
-                id = _AV$User$current.id,
-                createAt = _AV$User$current.createAt,
-                username = _AV$User$current.attributes.username;
+            var current = _leancloudStorage2.default.User.current();
+            if (current) {
+                var id = current.id,
+                    createAt = current.createAt,
+                    username = current.attributes.username;
 
-            return { id: id, username: username, createAt: createAt };
+                return { id: id, username: username, createAt: createAt };
+            } else {
+                return null;
+            }
         },
         logout: function logout() {
             _leancloudStorage2.default.User.logOut();
