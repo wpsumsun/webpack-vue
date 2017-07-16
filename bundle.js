@@ -296,17 +296,57 @@ var app = new _vue2.default({
     created: function created() {
         var _this = this;
 
-        window.onbeforeunload = function () {
-            var dataString = JSON.stringify(_this.todoList);
-            window.localStorage.setItem('myTodos', dataString);
-        };
-
-        var oldDataString = window.localStorage.getItem('myTodos');
-        var oldData = JSON.parse(oldDataString);
-        this.todoList = oldData || [];
         this.currentUser = this.getCurrentUser();
+        if (this.currentUser) {
+            var query = new _leancloudStorage2.default.Query('AllTodos');
+            query.find().then(function (todos) {
+                var avAllTodos = todos[0];
+                var id = avAllTodos.id;
+                _this.todoList = JSON.parse(avAllTodos.attributes.content);
+                _this.todoList.id = id;
+            }, function (error) {
+                console.error(error);
+            });
+        }
     },
     methods: {
+        updateTodos: function updateTodos() {
+            var dataString = JSON.stringify(this.todoList);
+            var avTodos = _leancloudStorage2.default.Object.createWithoutData('AllTodos', this.todoList.id);
+            avTodos.set('content', dataString);
+            avTodos.save().then(function () {
+                console.log('更新成功');
+            });
+        },
+        saveTodos: function saveTodos() {
+            var _this2 = this;
+
+            var dataString = JSON.stringify(this.todoList);
+            var AVTodos = _leancloudStorage2.default.Object.extend('AllTodos');
+            var avTodos = new AVTodos();
+            var acl = new _leancloudStorage2.default.ACL();
+            acl.setReadAccess(_leancloudStorage2.default.User.current(), true); // 只有这个 user 能读
+            acl.setWriteAccess(_leancloudStorage2.default.User.current(), true); // 只有这个 user 能写
+
+            avTodos.set('content', dataString);
+            avTodos.setACL(acl); // 设置访问控制
+
+            avTodos.save().then(function (todo) {
+                // 成功
+                _this2.todoList.id = todo.id;
+                console.log('保存成功');
+            }, function (error) {
+                // 失败
+                console.error('保存失败');
+            });
+        },
+        saveOrUpdateTodos: function saveOrUpdateTodos() {
+            if (this.todoList.id) {
+                this.updateTodos();
+            } else {
+                this.saveTodos();
+            }
+        },
         addTodo: function addTodo() {
             this.todoList.push({
                 title: this.newTodo,
@@ -314,13 +354,15 @@ var app = new _vue2.default({
                 done: false
             });
             this.newTodo = "";
+            this.saveOrUpdateTodos();
         },
         removeTodo: function removeTodo(todo) {
             var index = this.todoList.indexOf(todo);
             this.todoList.splice(index, 1);
+            this.saveOrUpdateTodos();
         },
         signUp: function signUp() {
-            var _this2 = this;
+            var _this3 = this;
 
             var user = new _leancloudStorage2.default.User();
             // 设置用户名
@@ -330,16 +372,17 @@ var app = new _vue2.default({
             // 设置邮箱
             // user.setEmail('tom@leancloud.cn');
             user.signUp().then(function (loginedUser) {
-                _this2.currentUser = _this2.getCurrentUser();
+                _this3.currentUser = _this3.getCurrentUser();
             }, function (error) {
-                alert('注册失败');
+                console.error('注册失败');
             });
         },
         login: function login() {
-            var _this3 = this;
+            var _this4 = this;
 
             _leancloudStorage2.default.User.logIn(this.formData.username, this.formData.password).then(function (loginedUser) {
-                _this3.currentUser = _this3.getCurrentUser();
+                _this4.currentUser = _this4.getCurrentUser();
+                window.location.reload();
             }, function (error) {});
         },
         getCurrentUser: function getCurrentUser() {
